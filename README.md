@@ -14,13 +14,13 @@ Make sure you have `Python >= 3.11` installed.
 1. Clone the repository:
 
    ```bash
-   git clone ...
+   git clone https://github.com/Ant0in/Projet1-InfoFond
    ```
 
 2. Navigate to the project directory:
 
    ```bash
-   cd ...
+   cd Projet1-InfoFond
    ```
 
 3. Install dependencies:
@@ -32,7 +32,7 @@ Make sure you have `Python >= 3.11` installed.
 4. Run the project:
 
    ```bash
-   python ".\main.py" -options
+   python ".\main.py" (-options)
    ```
 
 ### Running Tests
