@@ -1,6 +1,8 @@
 
 import sys
 from pathlib import Path
+# Pour permettre une structure propre, on doit ajouter le dossier ./src du projet
+# dans le path des modules à importer.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from functools import wraps
