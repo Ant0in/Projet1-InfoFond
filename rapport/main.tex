@@ -1,0 +1,189 @@
+
+
+\documentclass{article}
+\usepackage[french]{babel}
+\usepackage[letterpaper,top=2cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{subfig}
+\usepackage{float}
+
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+
+\title{INFO-F—302 : Nombre d'Alcuin d'un graphe }
+\author{Berthion Antoine - 566199}
+
+\begin{document}
+
+
+\maketitle
+
+\section{Introduction}
+\label{sec:introduction}
+
+Ce rapport a pour objectif d'examiner les stratégies d'implémentation du problème d'Alcuin, formulé au IXe siècle, dans l'ouvrage \textit{Ormesby Psalter}. À cette fin, nous utiliserons un \textbf{solveur SAT} ainsi que des outils permettant de formaliser ce problème sous forme d'une expression booléenne, précisément une CNF (conjonction de disjonctions).
+
+\section{Calcul du nombre d'Alcuin dans un graphe}
+\label{sec:alcuin_number}
+
+\noindent Dans cette section, nous nous concentrerons sur les questions 1, 2 et 3 de l’énoncé du problème. Nous aborderons la formalisation en \textbf{CNF} (\textit{Conjunctive Normal Form}) du problème général d’Alcuin, en prenant en compte :
+
+\begin{itemize} 
+\item un nombre $n$ de sujets et un nombre $m$ de conflits entre ces sujets,
+\item la contrainte d’absence de conflits à bord du bateau.
+\end{itemize}
+
+\noindent Cette formalisation constituera une étape clé pour la résolution algorithmique du problème.
+
+\subsection{Formalisation en \textbf{CNF}}
+\label{subsec:cnf}
+
+\noindent Afin de formaliser le problème en \textbf{CNF}, nous devons établir des contraintes sur nos littéraux, afin d'en faire une conjonction. Définissons en premier lieu les différentes fonctions de valuation que nous utiliserons.
+
+\begin{itemize}
+    \item \( x_{t,s,r} : K^3 \to \{0, 1\} \), une fonction prenant en paramètres un moment \( t \), un sujet \( s \), et une rive \( r \in \{0, 1\} \) (où la rive gauche est notée 0 et la rive droite 1). La fonction renvoie la valeur 1 si le sujet \( s \) se trouve sur la rive \( r \) au temps \( t \), et 0 sinon.
+    \item \( b_{t,r} : K^2 \to \{0, 1\} \), un fonction prenant en paramètres un moment \( t \), et une rive \( r \in \{0, 1\} \). La fonction renvoie la valeur 1 si le \textbf{berger} se trouve sur la rive \( r \) au temps \( t \), et 0 sinon.
+\end{itemize}
+
+\noindent Grâce à ces fonctions de valuation, nous allons écrire une formule \textbf{CNF} générant une séquence valide (vérifiant la \textit{conjonction} de \textbf{toutes} nos contraintes).
+
+\vspace{2em}
+
+\subsubsection{Contraintes initiale et terminale sur la séquence}
+
+\noindent En premier lieu, il est nécessaire d'exprimer que notre séquence commence par un état initial et se termine par un état terminal. Les contraintes associées à l'état initial peuvent être formalisées comme suit :
+
+\[
+\bigwedge_{s \in \text{subjects}} \left( x_{t=0, s, r=0} \right) \land
+b_{t=0, r=0}.
+\]
+
+\noindent Concernant l'état final, la taille de la séquence doit être prise en compte. Selon le théorème n°1 de l'énoncé \footnote{Péter Csorba, Cor A. J. Hurkens and Gerhard J. Woeginger (2012). The Alcuin Number of
+a Graph and Its Connections to the Vertex Cover Number, SIAM.
+6}, pour tout graphe \( G \) à \( n \) sommets, il existe une séquence correcte \( s \) de longueur au plus \( 2n + 1 \) telle que \( \text{Alcuin}(G) = \text{Alcuin}(s) \). Nous considérons donc des séquences de \( 2n + 2 \) configurations. La contrainte finale s'exprime alors comme suit :
+
+\[
+\bigwedge_{s \in \text{subjects}} \left( x_{t=2n+1, s, r=1} \right) \land
+b_{t=2n+1, r=1}.
+\]
+
+\subsubsection{Contrainte de transition}
+
+\noindent Nous souhaitons à présent créer une séquence possédant des transitions logiques. Intuitivement, il s'agit de dire que les sujets n'étant pas du côté du berger ne peuvent se déplacer. Plus formellement, on pose :
+
+\[
+\bigwedge_{t=0}^{(2n+2) - 1} \left( \bigwedge_{s \in \text{subjects}}  \left( \left( \lnot b_{t=t, r=0} \lor \lnot x_{t=t, s, r=1} \lor x_{t=t+1, s, r=1} \right) \land \left( \lnot b_{t=t, r=1} \lor \lnot x_{t=t, s, r=0} \lor x_{t=t+1, s, r=0} \right) \right) \right)
+\]
+
+\noindent Cette formule en forme de \textbf{CNF} s’explique comme suit : pour chaque transition, nous imposons que si le berger se trouve sur la rive gauche, alors aucun sujet sur la rive droite ne peut se déplacer, et réciproquement. Les simplifications logiques découlant de l’implication simple permettent d’obtenir directement cette conjonction de disjonctions.
+
+\subsubsection{Contrainte d'unicité}
+
+\noindent Rapidement, vérifions l'unicité de chaque élément. En clair, nous voulons montrer qu'un sujet (ou le berger) ne peut se trouver que sur une et une seule rive. Il n'est donc pas possible d'avoir un sujet sur deux rives à la fois, ou sur aucune d'entre elles. On écrit alors la \textbf{CNF} suivante :
+
+\[
+\bigwedge_{t=0}^{(2n+2)}
+\left(
+\bigwedge_{s \in \text{subjects}}
+\left( \left(
+x_{t, s, r=0} \lor x_{t, s, r=1}
+\right) \land \left(
+\lnot x_{t, s, r=0} \lor \lnot x_{t, s, r=1}
+\right) \right) \land \left( \left(
+b_{t=t, r=0} \lor b_{t=t, r=1}
+\right) \land \left(
+\lnot b_{t=t, r=0} \lor \lnot b_{t=t, r=1}
+\right) \right) \right) 
+\]
+
+\subsubsection{Contrainte de déplacement du berger}
+
+\noindent Afin de maintenir une cohérence entre les configurations, nous souhaitons que le berger se déplacer de rive pour \textbf{chaque transition}. Cette contrainte s'exprime simplement de la manière qui suit :
+
+\[
+\bigwedge_{t=0}^{(2n+2) - 1}
+\left(
+\left( \lnot b_{t=t, r=0} \lor b_{t=t+1, r=1} \right) 
+\land
+\left( \lnot b_{t=t, r=1} \lor b_{t=t+1, r=0} \right)
+\right)
+\]
+
+\subsubsection{Contrainte de conflit}
+
+\noindent Afin d'aider à la formalisation du concept de conflit, discutons de la logique derrière la formule que nous allons écrire. Un conflit entre deux sujets, $s_1$ et $s_2$ existe si ces deux sommets sont liés par une arête du graphe. Pour chaque transition, nous voudrions donc vérifier que pour chaque paire de sujet ($s_1$, $s_2$) de la rive \textbf{ou le berger ne se trouve pas} ne représente pas une arête du graphe. On peut alors écrire formellement :
+
+\[
+\bigwedge_{t=0}^{(2n+2)}
+\left(
+\bigwedge_{(s_1, s_2) \subseteq \text{subjects}}
+\left(
+\left(
+\lnot b_{t=t, r=0} \lor \lnot x_{t=t, s=s1, r=1} \lor \lnot x_{t=t, s=s2, r=1}
+\right)
+\land
+\left(
+\lnot b_{t=t, r=1} \lor \lnot x_{t=t, s=s1, r=0} \lor \lnot x_{t=t, s=s2, r=0}
+\right)
+\right)
+\right)
+\]
+
+\vspace{3em}
+
+\noindent Nos contraintes sont désormais formalisées. Nous souhaitons cependant poser une contrainte sur le nombre d'Alcuin des séquences respectant les contraintes posées. En effet, nous aimerions créer une contrainte supplémentaire posant que le nombre d'Alcuin d'une séquence devrait être inférieur à un entier positif $k$.
+
+\subsubsection{Contrainte d'Alcuin maximum}
+
+\noindent Comme discuté précédemment, nous souhaitons contraindre le nombre d'Alcuin des séquences valides, en le bornant par $k$. Comme il n'existe pas d'outil pour compter en logique booléenne, nous allons avoir besoin de recourir à un stratagème \footnote{Notons qu'il existe des outils permettant de compter avec les outils SAT, mais nous ne nous en servirons pas ici, puisqu'il ne s'agit pas du but de l'exercice. Notre implémentation ne sera cependant pas optimisée de meilleure des manières, de ce fait.}. Intuitivement, si le nombre d'Alcuin est fixé entre 1 et $k$, nous pouvons dire que pour chaque transition, il y'a au plus $k$ sujets de déplaçant. \\
+
+\noindent Plus précisément, on peut affirmer que les sous-ensembles des sujets de déplaçant pour chaque transition sont de taille $\leq k$. On donne alors l'idée de créer chaque sous-ensemble de taille $k+1$, et de vérifier si les éléments de ces sous-ensembles se déplacent tous. Si tel est le cas, alors le nombre d'Alcuin dépasse $k$, ce qui violerait notre contrainte. \\
+
+\noindent Cette astuce de comptage nous permet dès lors de vérifier que l'Alcuin ne dépasse pas un entier naturel $k$. On va définir la formule suivante :
+
+\[
+\bigwedge_{t=0}^{(2n+2) - 1}
+\bigwedge_{\substack{subg \subseteq subjects \\ \lvert subg \rvert = k+1}}
+\bigwedge_{s \in subg}
+\bigwedge_{r \in \{0, 1\}}
+\left(
+\lnot x_{t=t, s=s, r=r} \lor
+\lnot x_{t=t+1, s=s, r=(r+1) \% 2}
+\right)
+\]
+
+\noindent De cette façon, seules les séquences d'Alcuin inférieur ou égal à $k$ seront considérées comme valides.
+
+\subsection{Calcul du nombre d'Alcuin d'un problème donné}
+
+\noindent Après avoir formalisé notre formule en \textbf{CNF}, l'objectif est désormais de calculer le nombre d'Alcuin pour un problème donné. \\
+
+\noindent De manière intuitive, le nombre d'Alcuin maximal pour un problème impliquant \( n \) sujets est \( n \). Ce cas correspond à la situation où tous les sujets sont transportés simultanément sur le bateau. Par ailleurs, on peut raisonnablement supposer que le nombre d'Alcuin est au minimum égal à 1, car pour transporter des sujets d'une rive à l'autre, une place sur le bateau est nécessaire. Ainsi, en combinant ces intuitions, on en déduit que l'Alcuin d'un graphe quelconque \( G \) à \( n \) sommets doit être compris entre 1 et \( n \). \\
+
+\noindent Il semble donc raisonnable de vérifier, dans l'ordre croissant, l'existence d'une solution pour les valeurs de \( k \) allant de 1 à \( n \). La première séquence trouvée pour un \( k = i \) (voir la section \ref{sec:alcuin_number}) correspond alors à l'Alcuin de \( G \), c'est-à-dire \( i \).
+
+\section{Calcul du nombre d'Alcuin \textit{c-valide}}
+\label{sec:cvalid}
+
+\noindent ... \\
+
+\noindent ... \\
+
+\noindent ... \\
+
+\noindent ... \\
+
+\noindent ... \\
+
+\noindent ... \\
+
+\section{Utilisation des LLM}
+
+\noindent Dans cette courte partie, nous discuterons de l'utilisation des LLM dans le cadre du projet. Aucun LLM n'a été utilisé pour l'aspect implémentation ainsi que la compréhension du projet. Cependant, ce rapport à été corrigé du point de vue de la syntaxe et de la grammaire par DeepL ainsi qu'un modèle GPT. Notons tout de même qu'aucune des informations du rapport n'a été produite par une autre personne que l'auteur.
+
+\section{Conclusion}
+
+\noindent En conclusion, nous dirons que nous avons décrit précisément et formellement la résolution du problème d'Alcuin, en utilisant un \textbf{solveur SAT} sur une formule en \textbf{CNF}. Ce projet nous a introduit aux solveurs SAT et nous a fait formaliser un problème à l'aide de la théorie des graphes et de la logique booléenne.
+
+\end{document}
