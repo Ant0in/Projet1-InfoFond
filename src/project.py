@@ -155,12 +155,12 @@ def find_alcuin_number(G: nx.Graph) -> int:
 
 # Q5
 def gen_solution_cvalid(G: nx.Graph, k: int, c: int) -> list[tuple[int, set, set, tuple[set]]]:
-    # À COMPLÉTER
+    # TODO : À COMPLÉTER
     return
 
 # Q6
 def find_c_alcuin_number(G: nx.Graph, c: int) -> int:
-    # À COMPLÉTER
+    # TODO : À COMPLÉTER
     return
 
 
@@ -174,3 +174,4 @@ if __name__ == "__main__":
     solution: list[tuple[int, set, set]] = gen_solution(G, 1)
 
     print(solution)
+    
