@@ -35,18 +35,18 @@ def gen_solution(G: nx.Graph, k: int) -> list[tuple[int, set, set]]:
     def var_b(t, r): return pool.id(f"b_{t}_{r}")
 
     # 1st constraint : sequence must begins with configuration s0 (boatman left and subjects all left)
-    cnf.append([var_b(0, 0)])  # boatman left
-    cnf.append([-var_b(0, 1)])  # boatman not right
+    cnf.append([var_b(0, 0)])
+    cnf.append([-var_b(0, 1)])
     for s in range(num_subjects):
-        cnf.append([var_x(0, s, 0)])  # subject s left
-        cnf.append([-var_x(0, s, 1)])  # subject s not right
+        cnf.append([var_x(0, s, 0)])
+        cnf.append([-var_x(0, s, 1)])
 
     # 2nd constraint : sequence must ends with configuration sf (boatman right and subjects all right)
-    cnf.append([var_b(max_time_steps-1, 1)])  # boatman right
-    cnf.append([-var_b(max_time_steps-1, 0)])  # boatman not left
+    cnf.append([var_b(max_time_steps-1, 1)])
+    cnf.append([-var_b(max_time_steps-1, 0)])
     for s in range(num_subjects):
-        cnf.append([var_x(max_time_steps-1, s, 1)])  # subject s right
-        cnf.append([-var_x(max_time_steps-1, s, 0)])  # subject s not left
+        cnf.append([var_x(max_time_steps-1, s, 1)])
+        cnf.append([-var_x(max_time_steps-1, s, 0)])
         
     # 3rd constraint : only the subjects on the boatman side can switch side.
     for t in range(max_time_steps - 1):
@@ -75,25 +75,31 @@ def gen_solution(G: nx.Graph, k: int) -> list[tuple[int, set, set]]:
         for s1, s2 in list(itertools.combinations(subjects, 2)):
             if (s1, s2) in G.edges or (s2, s1) in G.edges:
                 # conflict between s1 and s2. must not be on the same side if boatman is not here.
-                cnf.append([-var_b(t, 0), -var_x(t, s1, 1), -var_x(t, s2, 1)])
-                cnf.append([-var_b(t, 1), -var_x(t, s1, 0), -var_x(t, s2, 0)])
+                cnf.append([-var_b(t, 0), -var_x(t, subjects.index(s1), 1), -var_x(t, subjects.index(s2), 1)])
+                cnf.append([-var_b(t, 1), -var_x(t, subjects.index(s1), 0), -var_x(t, subjects.index(s2), 0)])
 
-    # TODO : 7th constraint : from t -> t+1, the number of subject that moved (alcuin(c)) is inferior to k.
+    # 7th constraint : from t -> t+1, the number of subject that moved (alcuin(c)) is inferior to k.
     # l'idée est de regarder entre deux instants si il existe un sous ensemble de taille k+1 de sujets qui ont bougé.
     # On va donc générer toutes les permutations de k+1 sujets.
-    for subgroup in list(itertools.combinations([idx for idx in range(num_subjects)], k+1)):
+    
+    for subgroup in itertools.combinations(range(num_subjects), k+1):
         
+        # Pour chaque subgroup, on regarde si ses éléments se sont tous déplacés.
         for t in range(max_time_steps - 1):
-            
-            clause: list = list()
-            for s in subgroup:
-                ...
-
+            for s in range(num_subjects):
+                for r in range(2):
+                    clause: list = []
+                    for i in subgroup:
+                        clause.append(-var_x(t, i, r))
+                        clause.append(-var_x(t + 1, i, (r + 1) % 2))
+                    cnf.append(clause)
 
     # solver :
     with Minicard(bootstrap_with=cnf) as solver:
         
-        if solver.solve():
+        solution_found: bool = solver.solve()
+
+        if solution_found:
 
             model: list | None = solver.get_model()
             solution: list[tuple[int, set, set]] = list()
@@ -102,6 +108,7 @@ def gen_solution(G: nx.Graph, k: int) -> list[tuple[int, set, set]]:
 
                 left_bank: set = set()
                 right_bank: set = set()
+                # boatman switches sides each step
                 boatman_bank: int = 0 if t % 2 == 0 else 1
                 
                 for s in range(num_subjects):
@@ -117,24 +124,34 @@ def gen_solution(G: nx.Graph, k: int) -> list[tuple[int, set, set]]:
                         if model[right_index] > 0:
                             right_bank.add(subjects[s])
 
-                # On évite d'ajouter les configurations inutiles vides
-                if len(left_bank) + len(right_bank) != 0:
+                # if configuration is empty, we skip it.
+                if len(left_bank) + len(right_bank) > 0:
                     solution.append((boatman_bank, left_bank, right_bank))
 
             return solution
         
         else:
-            print('[i] No solution!')
+            # No solution.
             return None
-
-
-
-
-
+        
 # Q3
 def find_alcuin_number(G: nx.Graph) -> int:
-    # À COMPLÉTER
-    return
+    
+    # key idea behind this function is that worst case alcuin for a graph G with n subject is n,
+    # which means the boatman just brings everyone on his boat. We will try to find a solution
+    # between 1 and n, and return the best one that comes first.
+
+    n: int = len(G.nodes)
+
+    for i in range(1, n + 1):
+
+        solution: None | list[tuple[int, set, set]] = gen_solution(G=G, k=i)
+        if solution is not None:
+            return i
+    
+    # not supposed to have a alcuin > n. worst case scenario is n, for complete graph i.e.
+    raise Exception('[E] Not supposed to reach this.')
+
 
 # Q5
 def gen_solution_cvalid(G: nx.Graph, k: int, c: int) -> list[tuple[int, set, set, tuple[set]]]:
