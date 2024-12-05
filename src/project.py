@@ -86,13 +86,12 @@ def gen_solution(G: nx.Graph, k: int) -> list[tuple[int, set, set]]:
         
         # Pour chaque subgroup, on regarde si ses éléments se sont tous déplacés.
         for t in range(max_time_steps - 1):
-            for s in range(num_subjects):
-                for r in range(2):
-                    clause: list = []
-                    for i in subgroup:
-                        clause.append(-var_x(t, i, r))
-                        clause.append(-var_x(t + 1, i, (r + 1) % 2))
-                    cnf.append(clause)
+            for r in range(2):
+                clause: list = []
+                for i in subgroup:
+                    clause.append(-var_x(t, i, r))
+                    clause.append(-var_x(t + 1, i, (r + 1) % 2))
+                cnf.append(clause)
 
     # solver :
     with Minicard(bootstrap_with=cnf) as solver:
@@ -174,4 +173,4 @@ if __name__ == "__main__":
     solution: list[tuple[int, set, set]] = gen_solution(G, 1)
 
     print(solution)
-    
+
