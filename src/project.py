@@ -151,60 +151,64 @@ def find_alcuin_number(G: nx.Graph) -> int:
     # not supposed to have a alcuin > n. worst case scenario is n, for complete graph i.e.
     raise Exception('[E] Not supposed to reach this.')
 
-# Helper for Q5 8th constraint
-def generate_c_partitions(subjects: list[int], c: int) -> ...:
 
-    n: int = len(subjects)
+class cPartitionHelper:
     
-    # each element of s is assigned to a subset
-    for assignment in itertools.product(range(c), repeat=n):
-        # create subsets
-        subsets: list[set] = [set() for _ in range(c)]
-        for i, subset_index in enumerate(assignment):
-            subsets[subset_index].add(subjects[i])
-        # yield current subset
-        yield subsets
+    @staticmethod
+    def generate_c_partitions(subjects: list[int], c: int) -> ...:
 
-# Helper for Q5 8th constraint
-def find_stable_c_partition(G: nx.graph, c_partitions: list[list[set]]) -> list[set] | None:
-
-    # Pour chaque partition dans les c_partitions, on va vérifier si elle est stable.
-
-    for partition in c_partitions:
+        n: int = len(subjects)
         
-        is_partition_stable: bool = True
+        # each element of s is assigned to a subset
+        for assignment in itertools.product(range(c), repeat=n):
+            # create subsets
+            subsets: list[set] = [set() for _ in range(c)]
+            for i, subset_index in enumerate(assignment):
+                subsets[subset_index].add(subjects[i])
+            # yield current subset
+            yield subsets
 
-        # On vérifie chaque compartiment, pour vérifier qu'il est stable.
-        for compartiment in partition:
+    @staticmethod
+    def find_stable_c_partition(G: nx.graph, c_partitions: list[list[set]]) -> list[set] | None:
 
-            # Si le compartiment est occupé par un seul ou aucun sujet, alors aucun conflit.
-            if len(compartiment) < 2: continue
+        # Pour chaque partition dans les c_partitions, on va vérifier si elle est stable.
 
-            # Sinon on vérifie pour chaque paire de sujets qu'ils ne sont pas en conflit.
-            else:
-
-                for s1, s2 in list(itertools.combinations(compartiment, 2)):
-
-                    if (s1, s2) in G.edges or (s2, s1) in G.edges:
-                        # La partition n'est pas stable puiqu'il existe une
-                        # paire problématique dans la partition
-                        is_partition_stable = False
-                        break
+        for partition in c_partitions:
             
-            # Si un compartiment n'est pas stable, alors pas la peine de vérifier les autres.
-            if not is_partition_stable:
-                break
-        
-        if is_partition_stable:
-            # Si après avoir inspecté la partition on définit qu'elle est stable,
-            # alors ça signifie qu'il existe un agencement des sujets tel que
-            # les sujets fit sans conflit dans les c compartiments du bateau.
-            return partition
+            is_partition_stable: bool = True
 
-    # On return une partition stable si elle existe en c éléments.
-    # Il pourrait en exister plus, mais on ne les cherche pas, savoir qu'il existe
-    # une partition stable (ou pas) est suffisant.
-    return None
+            # On vérifie chaque compartiment, pour vérifier qu'il est stable.
+            for compartiment in partition:
+
+                # Si le compartiment est occupé par un seul ou aucun sujet, alors aucun conflit.
+                if len(compartiment) < 2: continue
+
+                # Sinon on vérifie pour chaque paire de sujets qu'ils ne sont pas en conflit.
+                else:
+
+                    for s1, s2 in list(itertools.combinations(compartiment, 2)):
+
+                        if (s1, s2) in G.edges or (s2, s1) in G.edges:
+                            # La partition n'est pas stable puiqu'il existe une
+                            # paire problématique dans la partition
+                            is_partition_stable = False
+                            break
+                
+                # Si un compartiment n'est pas stable, alors pas la peine de vérifier les autres.
+                if not is_partition_stable:
+                    break
+            
+            if is_partition_stable:
+                # Si après avoir inspecté la partition on définit qu'elle est stable,
+                # alors ça signifie qu'il existe un agencement des sujets tel que
+                # les sujets fit sans conflit dans les c compartiments du bateau.
+                return partition
+
+        # On return une partition stable si elle existe en c éléments.
+        # Il pourrait en exister plus, mais on ne les cherche pas, savoir qu'il existe
+        # une partition stable (ou pas) est suffisant.
+        return None
+
 
 # Q5
 def gen_solution_cvalid(G: nx.Graph, k: int, c: int) -> list[tuple[int, set, set, tuple[set]]]:
@@ -302,8 +306,8 @@ def gen_solution_cvalid(G: nx.Graph, k: int, c: int) -> list[tuple[int, set, set
     # Pour chaque sous groupe possible de sujets, on va regarder si une de ses c-partition est stable.
     for subgroup in frozenset(itertools.chain.from_iterable(itertools.combinations(subjects, r) for r in range(1, num_subjects + 1))):
         
-        c_partitions: list[set] = list(generate_c_partitions(subjects=subgroup, c=c))
-        stable_c_partition: list[set] | None = find_stable_c_partition(G=G, c_partitions=c_partitions)
+        c_partitions: list[set] = list(cPartitionHelper.generate_c_partitions(subjects=subgroup, c=c))
+        stable_c_partition: list[set] | None = cPartitionHelper.find_stable_c_partition(G=G, c_partitions=c_partitions)
 
         # Si une c-partition stable existe, alors on ne posera pas de contrainte sur ce transport.
         # Si elle ne l'est pas, alors on pose la contrainte que le transport de tout les sujets
@@ -314,8 +318,12 @@ def gen_solution_cvalid(G: nx.Graph, k: int, c: int) -> list[tuple[int, set, set
             # print(f'[!] Subgroup problématique avec {c} compartiments : {subgroup}')
 
             for t in range(max_time_steps - 1):
-                # TODO : Write the constraint
-                ...
+                # TODO : fix the constraint
+                for r in range(2):
+                    clause: list = []
+                    for i in subgroup:
+                        clause.append(-var_x(t, i, r))
+                        clause.append(-var_x(t + 1, i, (r + 1) % 2))
 
         else:
             partition_dict[frozenset(subgroup)] = stable_c_partition
@@ -365,6 +373,7 @@ def gen_solution_cvalid(G: nx.Graph, k: int, c: int) -> list[tuple[int, set, set
 
                 solution.append((boatman_bank, left_bank, right_bank, boat_subjects))
 
+            print(solution)
             return solution
         
         else:
