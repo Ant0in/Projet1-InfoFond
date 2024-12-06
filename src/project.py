@@ -151,6 +151,50 @@ def find_alcuin_number(G: nx.Graph) -> int:
     # not supposed to have a alcuin > n. worst case scenario is n, for complete graph i.e.
     raise Exception('[E] Not supposed to reach this.')
 
+# Helper for Q5 8th constraint
+def generate_c_partitions(subjects: list[int], c: int) -> ...:
+
+    n: int = len(subjects)
+    
+    # each element of s is assigned to a subset
+    for assignment in itertools.product(range(c), repeat=n):
+        # create subsets
+        subsets: list[set] = [set() for _ in range(c)]
+        for i, subset_index in enumerate(assignment):
+            subsets[subset_index].add(subjects[i])
+        # yield current subset
+        yield subsets
+
+# Helper for Q5 8th constraint
+def does_stable_c_partition_exists(G: nx.graph, c_partitions: list[set]) -> bool:
+    
+    does_stable_exist: bool = False
+
+    for partition in c_partitions:
+        
+        is_partition_stable: bool = True
+        for s1, s2 in list(itertools.combinations(partition, 2)):
+
+            if not s1 or not s2:
+                continue
+
+            if (s1, s2) in G.edges or (s2, s1) in G.edges:
+                # La partition n'est pas stable puiqu'il existe une
+                # paire problématique dans la partition
+                is_partition_stable = False
+                break
+        
+        if is_partition_stable:
+            # Si après avoir inspecté la partition on définit qu'elle est stable,
+            # alors ça signifie qu'il existe un agencement des sujets tel que
+            # les sujets fit sans conflit dans les c compartiments du bateau.
+            does_stable_exist = True
+            break
+
+    # On return True si il existe au moins une partition stable en c éléments.
+    # Il pourrait en exister plus, mais on ne les cherche pas, savoir qu'il existe
+    # une partition stable (ou pas) est suffisant.
+    return does_stable_exist
 
 # Q5
 def gen_solution_cvalid(G: nx.Graph, k: int, c: int) -> list[tuple[int, set, set, tuple[set]]]:
@@ -239,29 +283,62 @@ def gen_solution_cvalid(G: nx.Graph, k: int, c: int) -> list[tuple[int, set, set
                     clause.append(-var_x(t + 1, i, (r + 1) % 2))
                 cnf.append(clause)
 
-    # TODO : 8th constraint : from t -> t+1, the subject that moved (alcuin(c)) must be able to split into c groups
-    # TODO : which dont create conflicts on the boat. Intuitively, we want to generate each c-subdivision of the set
-    # TODO : of the subjects that are moving, and see if any of them is without conflicts. If not the case, then must be invalid transition.
-    ...
-
-    # TODO : rewrite solver:
-    with Minicard(bootstrap_with=cnf) as solver:
+    # 8th constraint : from t -> t+1, the subject that moved (alcuin(c)) must be able to split into c groups
+    # which dont create conflicts on the boat. Intuitively, we want to generate each c-subdivision of the set
+    # of the subjects that are moving, and see if any of them is without conflicts. If not the case, then must be invalid transition.
+    
+    # Pour chaque sous groupe possible de sujets, on va regarder si une de ses c-partition est stable.
+    for subgroup in list(itertools.chain.from_iterable(itertools.combinations(subjects, r) for r in range(1, num_subjects + 1))):
         
+        c_partitions: list[set] = list(generate_c_partitions(subjects=subgroup, c=c))
+        is_stable: bool = does_stable_c_partition_exists(G=G, c_partitions=c_partitions)
+
+        # Si une c-partition stable existe, alors on ne posera pas de contrainte sur ce transport.
+        # Si elle ne l'est pas, alors on pose la contrainte que le transport de tout les sujets
+        # (en même temps) du "subgroup" n'est pas possible avec c compartiments.
+
+        if not is_stable:
+            for t in range(max_time_steps - 1):
+                # TODO : Write the constraint
+                ...
+
+    with Minicard(bootstrap_with=cnf) as solver:
         solution_found: bool = solver.solve()
 
         if solution_found:
-
             model: list | None = solver.get_model()
-            solution: list[tuple[int, set, set]] = list()
+            solution: list[tuple[int, set, set]] = []
             
             for t in range(max_time_steps):
-
+                # Initialisation des rives
                 left_bank: set = set()
                 right_bank: set = set()
-                # boatman switches sides each step
+                boat_subjects: set = set()            
                 boatman_bank: int = 0 if t % 2 == 0 else 1
-                ...
+                
+                for s in range(num_subjects):
 
+                    left_index: int = var_x(t, s, 0) - 1
+                    right_index: int = var_x(t, s, 1) - 1
+
+                    if 0 <= left_index < len(model):
+                        if model[left_index] > 0:
+                            left_bank.add(subjects[s])
+
+                    if 0 <= right_index < len(model):
+                        if model[right_index] > 0:
+                            right_bank.add(subjects[s])
+
+                if t != 0:
+                    if boatman_bank == 0:
+                        # le déplacement précédent était droite vers gauche
+                        boat_subjects = left_bank - solution[-1][1]
+                    else:
+                        boat_subjects = right_bank - solution[-1][2]
+
+                # Ajouter la configuration du temps t dans la solution
+                solution.append((boatman_bank, left_bank, right_bank, boat_subjects))
+            
             return solution
         
         else:
@@ -287,3 +364,11 @@ def find_c_alcuin_number(G: nx.Graph, c: int) -> int | float:
     # If found nothing, then returns +inf
     return float('inf')
 
+
+
+if __name__ == '__main__':
+    
+    G = nx.Graph()
+    G.add_nodes_from(['chevre', 'choux', 'loup'])
+    G.add_edges_from([('chevre', 'loup'), ('chevre', 'choux')])
+    print(find_c_alcuin_number(G=G, c=2))
