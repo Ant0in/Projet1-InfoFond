@@ -211,7 +211,7 @@ class cPartitionHelper:
 
 
 # Q5
-def gen_solution_cvalid(G: nx.Graph, k: int, c: int) -> list[tuple[int, set, set, tuple[set]]]:
+def gen_solution_cvalid(G: nx.Graph, k: int, c: int, verbose: bool = True) -> list[tuple[int, set, set, tuple[set]]]:
     
     """
     Génère une solution pour le problème d'Alcuin avec un Alcuin <= k et c compartiments de taille c.
@@ -304,6 +304,7 @@ def gen_solution_cvalid(G: nx.Graph, k: int, c: int) -> list[tuple[int, set, set
     partition_dict: dict = dict()
 
     # Pour chaque sous groupe possible de sujets, on va regarder si une de ses c-partition est stable.
+    if verbose: print(f'[i] Generating Subgroups with c={c} and {num_subjects} subjects.')
     for subgroup in frozenset(itertools.chain.from_iterable(itertools.combinations(subjects, r) for r in range(1, num_subjects + 1))):
         
         c_partitions: list[set] = list(cPartitionHelper.generate_c_partitions(subjects=subgroup, c=c))
@@ -315,7 +316,7 @@ def gen_solution_cvalid(G: nx.Graph, k: int, c: int) -> list[tuple[int, set, set
 
         if stable_c_partition is None:
 
-            # print(f'[!] Subgroup problématique avec {c} compartiments : {subgroup}')
+            print(f'[!] Subgroup problématique avec {c} compartiments : {subgroup} (k={k})')
 
             for t in range(max_time_steps - 1):
                 # TODO : fix the constraint
@@ -373,7 +374,6 @@ def gen_solution_cvalid(G: nx.Graph, k: int, c: int) -> list[tuple[int, set, set
 
                 solution.append((boatman_bank, left_bank, right_bank, boat_subjects))
 
-            print(solution)
             return solution
         
         else:
@@ -388,6 +388,7 @@ def find_c_alcuin_number(G: nx.Graph, c: int) -> int | float:
     # between 1 and c for c_prime, and for this c-Alcuin, a solution bewteen 1 and n, and return the best one that comes first.
 
     n: int = len(G.nodes)
+    if c==0: return float('inf')
 
     for k in range(1, n + 1):
 
