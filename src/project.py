@@ -29,9 +29,9 @@ def gen_solution(G: nx.Graph, k: int) -> list[tuple[int, set, set]]:
     pool: IDPool = IDPool()
     cnf: CNFPlus = CNFPlus()
 
-    # - x[t, s, r]: Le sujet `s` est sur la rive `r` (0 = gauche, 1 = droite) au temps t.
+    # - x[t, s, r]: Subject s in on bank r (0 = left, 1 = right) at given time t.
     def var_x(t, s, r): return pool.id(f"x_{t}_{s}_{r}")
-    # - b[t, r]: Le boatman est sur la rive `r` au temps t.
+    # - b[t, r]:Boatman is on bank r at given time t.
     def var_b(t, r): return pool.id(f"b_{t}_{r}")
 
     # 1st constraint : sequence must begins with configuration s0 (boatman left and subjects all left)
@@ -234,9 +234,9 @@ def gen_solution_cvalid(G: nx.Graph, k: int, c: int, verbose: bool = True) -> li
     pool: IDPool = IDPool()
     cnf: CNFPlus = CNFPlus()
 
-    # - x[t, s, r]: Le sujet `s` est sur la rive `r` (0 = gauche, 1 = droite) au temps t.
+    # - x[t, s, r]: Subject s in on bank r (0 = left, 1 = right) at given time t.
     def var_x(t, s, r): return pool.id(f"x_{t}_{s}_{r}")
-    # - b[t, r]: Le boatman est sur la rive `r` au temps t.
+    # - b[t, r]:Boatman is on bank r at given time t.
     def var_b(t, r): return pool.id(f"b_{t}_{r}")
 
     # 1st constraint : sequence must begins with configuration s0 (boatman left and subjects all left)
@@ -300,7 +300,6 @@ def gen_solution_cvalid(G: nx.Graph, k: int, c: int, verbose: bool = True) -> li
     # 8th constraint : from t -> t+1, the subject that moved (alcuin(c)) must be able to split into c groups
     # which dont create conflicts on the boat. Intuitively, we want to generate each c-subdivision of the set
     # of the subjects that are moving, and see if any of them is without conflicts. If not the case, then must be invalid transition.
-    
     partition_dict: dict = dict()
 
     # Pour chaque sous groupe possible de sujets, on va regarder si une de ses c-partition est stable.
@@ -329,6 +328,7 @@ def gen_solution_cvalid(G: nx.Graph, k: int, c: int, verbose: bool = True) -> li
         else:
             partition_dict[frozenset(subgroup)] = stable_c_partition
 
+    # Solver
     with Minicard(bootstrap_with=cnf) as solver:
         solution_found: bool = solver.solve()
 
@@ -339,7 +339,6 @@ def gen_solution_cvalid(G: nx.Graph, k: int, c: int, verbose: bool = True) -> li
             empty_boat_c_partition: tuple[set] = tuple(set() for _ in range(c))
             
             for t in range(max_time_steps):
-                # Initialisation des rives
                 left_bank: set = set()
                 right_bank: set = set()
                 boat_subjects: set = None            
@@ -362,9 +361,11 @@ def gen_solution_cvalid(G: nx.Graph, k: int, c: int, verbose: bool = True) -> li
 
                     if boatman_bank == 0:
                         # le déplacement précédent était droite vers gauche
+                        # On fait un lookup dans la table des partitions valides pour le subset
                         boat_subjects = partition_dict.get(frozenset(left_bank - solution[-1][1]))
                     else:
                         # le déplacement précédent était gauche vers droite
+                        # On fait un lookup dans la table des partitions valides pour le subset
                         boat_subjects = partition_dict.get(frozenset(right_bank - solution[-1][2]))
 
                 if boat_subjects is None:
@@ -406,4 +407,4 @@ if __name__ == '__main__':
     G = nx.Graph()
     G.add_nodes_from(['chevre', 'choux', 'loup'])
     G.add_edges_from([('chevre', 'loup'), ('chevre', 'choux')])
-    print(find_c_alcuin_number(G=G, c=2))
+    print(find_c_alcuin_number(G=G, c=1))
